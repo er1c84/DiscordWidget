@@ -3,11 +3,17 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WPF owns per-monitor DPI through app.manifest. WinForms is used only
+         for NotifyIcon, not for an application entry point or visible form. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
     <InternalsVisibleTo Include="DiscordFloatingWidget.Tests" />
   </ItemGroup>
 </Project>

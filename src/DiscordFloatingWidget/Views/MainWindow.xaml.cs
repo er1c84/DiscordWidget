@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Input;
@@ -12,8 +13,24 @@ public partial class MainWindow : Window
 {
     private readonly WindowStateService _layout;
     private Size? _compactSize;
-    private bool _closing, _allowClose;
+    private bool _closing, _allowClose, _exitRequested, _sessionEnding;
     private IInputElement? _lastFocusedElement;
+
+    // Enabled only after a tray icon exists, so a tray failure cannot strand the app.
+    private bool _closeToTray;
+    internal bool CloseToTray
+    {
+        get => _closeToTray;
+        set
+        {
+            _closeToTray = value;
+            var label = value ? "Hide to system tray" : "Close application";
+            CloseButton.ToolTip = label;
+            AutomationProperties.SetName(CloseButton, label);
+        }
+    }
+    internal bool IsExiting => _closing;
+    internal event Action? Exiting;
 
     public MainWindow(SettingsService settings, WindowLayout? initialLayout, string? loadWarning)
     {
@@ -47,8 +64,16 @@ public partial class MainWindow : Window
 
     private void ShowWarning(string warning)
     {
+        if (_sessionEnding)
+        {
+            Trace.TraceWarning(warning);
+            return;
+        }
         if (_closing)
         {
+            if (!IsVisible) Show();
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Activate();
             MessageBox.Show(this, warning, "Window layout", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -64,7 +89,13 @@ public partial class MainWindow : Window
         if (_allowClose) return;
         e.Cancel = true;
         if (_closing) return;
+        if (CloseToTray && !_exitRequested)
+        {
+            HideToTray();
+            return;
+        }
         _closing = true;
+        Exiting?.Invoke();
         await _layout.StopAndSaveAsync();
         _allowClose = true;
         Close();
@@ -79,10 +110,23 @@ public partial class MainWindow : Window
         if (_closing || !IsEnabled) return;
         if (IsVisible && WindowState != WindowState.Minimized)
         {
-            _lastFocusedElement = FocusManager.GetFocusedElement(this);
-            Hide();
+            HideToTray();
             return;
         }
+
+        ShowAndFocus();
+    }
+
+    internal void HideToTray()
+    {
+        if (_closing || !IsEnabled) return;
+        _lastFocusedElement = FocusManager.GetFocusedElement(this) ?? _lastFocusedElement;
+        Hide();
+    }
+
+    internal void ShowAndFocus()
+    {
+        if (_closing || !IsEnabled) return;
 
         _lastFocusedElement = FocusManager.GetFocusedElement(this) ?? _lastFocusedElement;
         Show();
@@ -104,6 +148,22 @@ public partial class MainWindow : Window
                 }
             }));
         }
+    }
+
+    internal void RequestExit()
+    {
+        if (_closing || !IsEnabled) return;
+        _exitRequested = true;
+        Close();
+    }
+
+    internal void PrepareForSessionEnd()
+    {
+        _sessionEnding = true;
+        _exitRequested = _closing = true;
+        Exiting?.Invoke();
+        if (_layout.StopAndSaveForSessionEnd() is { } warning) Trace.TraceWarning(warning);
+        _allowClose = true;
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();

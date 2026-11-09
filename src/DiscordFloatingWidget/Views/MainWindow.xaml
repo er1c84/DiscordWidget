@@ -31,7 +31,7 @@
                             ToolTip="Minimize" AutomationProperties.Name="Minimize" Click="Minimize_Click" />
                     <Button x:Name="ExpandButton" Style="{StaticResource HeaderButton}" Content="&#x25A1;"
                             ToolTip="Expand" AutomationProperties.Name="Expand" Click="Expand_Click" />
-                    <Button Style="{StaticResource HeaderButton}" Content="&#x00D7;"
+                    <Button x:Name="CloseButton" Style="{StaticResource HeaderButton}" Content="&#x00D7;"
                             ToolTip="Close application" AutomationProperties.Name="Close application" Click="Close_Click" />
                 </StackPanel>
             </Grid>

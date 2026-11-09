@@ -148,6 +148,20 @@ public sealed class WindowStateService
 
     public async Task StopAndSaveAsync()
     {
+        Stop();
+        if (_lastNormalLayout is { } layout) Report(await _settings.SaveAsync(layout));
+    }
+
+    // Windows session ending is synchronous; complete the small serialized write
+    // without depending on a dispatcher that Windows is about to shut down.
+    internal string? StopAndSaveForSessionEnd()
+    {
+        Stop();
+        return _lastNormalLayout is { } layout ? _settings.SaveAsync(layout).GetAwaiter().GetResult() : null;
+    }
+
+    private void Stop()
+    {
         Capture();
         _stopped = true;
         _saveTimer.Stop();
@@ -157,7 +171,6 @@ public sealed class WindowStateService
         _window.LocationChanged -= GeometryChanged;
         _window.SizeChanged -= GeometryChanged;
         _window.StateChanged -= StateChanged;
-        if (_lastNormalLayout is { } layout) Report(await _settings.SaveAsync(layout));
     }
 
     private void TryDisplayAction(Action action)

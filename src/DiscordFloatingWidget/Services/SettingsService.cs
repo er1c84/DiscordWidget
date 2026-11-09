@@ -40,13 +40,13 @@ public sealed class SettingsService(string filePath)
     {
         if (!_canSave) return null;
         if (!layout.IsValid) throw new ArgumentException("Invalid window layout.", nameof(layout));
-        await _writeLock.WaitAsync();
+        await _writeLock.WaitAsync().ConfigureAwait(false);
         string? temporaryPath = null;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(filePath))!);
             temporaryPath = filePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            await File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(new LayoutSettings(1, layout), JsonOptions));
+            await File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(new LayoutSettings(1, layout), JsonOptions)).ConfigureAwait(false);
             // Replace in the same directory, so an interrupted write cannot truncate the old JSON.
             File.Move(temporaryPath, filePath, overwrite: true);
             return null;

@@ -6,6 +6,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using DiscordFloatingWidget.Services;
 using DiscordFloatingWidget.Views;
+using Microsoft.Win32;
 using Xunit;
 
 namespace DiscordFloatingWidget.Tests;
@@ -19,6 +20,7 @@ public sealed class WindowLifecycleTests
         // into another application or changing the user's display configuration.
         var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var directory = Path.Combine(Path.GetTempPath(), "DiscordWidgetTests", Guid.NewGuid().ToString("N"));
+        var registryPath = @"Software\DiscordFloatingWidget.Tests\" + Guid.NewGuid().ToString("N");
         var thread = new Thread(() =>
         {
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -34,6 +36,43 @@ public sealed class WindowLifecycleTests
                     var window = new MainWindow(settings, null, null) { ShowActivated = false };
                     window.Show();
                     await Idle();
+                    Directory.CreateDirectory(directory);
+                    var executable = Path.Combine(directory, "Test widget.exe");
+                    File.WriteAllText(executable, "Test fixture; never executed.");
+                    var startup = new StartupService(executable, registryPath);
+                    using var tray = new TrayIconService(window, startup);
+                    window.Exiting += tray.Dispose;
+                    Assert.True(window.CloseToTray);
+                    Assert.Equal("Hide to system tray", ((Button)window.FindName("CloseButton")).ToolTip);
+                    Assert.False(tray.StartupItem.Checked);
+
+                    window.Close(); // X/Alt+F4 hides without starting shutdown.
+                    await Idle();
+                    Assert.False(window.IsVisible);
+                    Assert.False(window.IsExiting);
+                    tray.RefreshMenu();
+                    Assert.Equal("Show Widget", tray.VisibilityItem.Text);
+                    tray.VisibilityItem.PerformClick();
+                    await Idle();
+                    Assert.True(window.IsVisible);
+                    window.ShowAndFocus(); // Repeated activation must never toggle it off.
+                    Assert.True(window.IsVisible);
+                    tray.RefreshMenu();
+                    Assert.Equal("Hide Widget", tray.VisibilityItem.Text);
+                    tray.VisibilityItem.PerformClick();
+                    await Idle();
+                    Assert.False(window.IsVisible);
+                    window.ShowAndFocus();
+                    await Idle();
+
+                    tray.StartupItem.PerformClick();
+                    await Idle();
+                    Assert.Equal((true, null), startup.Read());
+                    Assert.True(tray.StartupItem.Checked);
+                    tray.StartupItem.PerformClick();
+                    await Idle();
+                    Assert.Equal((false, null), startup.Read());
+                    Assert.False(tray.StartupItem.Checked);
                     Assert.True(window.Topmost);
                     Assert.Equal(360, window.ActualWidth, 0);
                     Assert.Equal(500, window.ActualHeight, 0);
@@ -64,7 +103,9 @@ public sealed class WindowLifecycleTests
 
                     window.WindowState = WindowState.Minimized;
                     await Idle();
-                    window.ToggleVisibility();
+                    tray.RefreshMenu();
+                    Assert.Equal("Show Widget", tray.VisibilityItem.Text);
+                    tray.VisibilityItem.PerformClick();
                     await Idle();
                     Assert.True(window.IsVisible);
                     Assert.Equal(WindowState.Normal, window.WindowState);
@@ -100,7 +141,13 @@ public sealed class WindowLifecycleTests
                     await Idle();
                     window.WindowState = WindowState.Minimized;
                     await Idle();
-                    await CloseAsync(window);
+                    window.HideToTray();
+                    var exited = new TaskCompletionSource();
+                    window.Closed += (_, _) => exited.SetResult();
+                    tray.ExitItem.PerformClick();
+                    await exited.Task;
+                    Assert.True(window.IsExiting);
+                    Assert.False(window.CloseToTray);
                     var (saved, warning) = await settings.LoadAsync();
                     Assert.Null(warning);
                     Assert.NotNull(saved);
@@ -118,7 +165,10 @@ public sealed class WindowLifecycleTests
                     Assert.InRange(Math.Abs(origin.Y - saved.Top), 0, 2);
                     restored.ToggleVisibility();
                     Assert.False(restored.IsVisible);
+                    restored.CloseToTray = true;
+                    restored.PrepareForSessionEnd();
                     await CloseAsync(restored);
+                    Assert.NotNull((await settings.LoadAsync()).Layout);
                     completed.SetResult();
                 }
                 catch (Exception ex) { completed.SetException(ex); }
@@ -132,6 +182,7 @@ public sealed class WindowLifecycleTests
         finally
         {
             if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+            Registry.CurrentUser.DeleteSubKeyTree(registryPath, throwOnMissingSubKey: false);
         }
     }
 
