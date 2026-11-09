@@ -87,6 +87,29 @@ feature bands and selects Microsoft.Testing.Platform for the xUnit tests.
 The first test build restores packages from NuGet. F5 builds and debugs the
 widget; **Terminal > Run Task > run widget** is also available.
 
+### Desktop shortcut on this computer
+
+Build the Release app once, then create the shortcut from the repository's
+PowerShell terminal:
+
+```powershell
+dotnet build .\src\DiscordFloatingWidget\DiscordFloatingWidget.csproj --configuration Release
+.\scripts\Create-DesktopShortcut.ps1
+```
+
+Double-click **Discord Widget** on your desktop to launch the Release app without
+opening VS Code or a terminal. The script finds your Windows desktop automatically,
+including when it is redirected to OneDrive. It can refresh its own shortcut but
+refuses to replace a shortcut pointing elsewhere. Preview with `-WhatIf`.
+
+Keep the repository and its Release build files in place. If you move the
+repository, remove the old desktop shortcut and rerun the script from the new
+location. After code changes, close the widget and rebuild Release to update what
+the shortcut launches. The normal .NET 10 Desktop Runtime is still required;
+the .NET 10 SDK used for development includes it. This shortcut does not install
+the application or enable automatic startup. A distributable installer that
+creates shortcuts for other users is planned for a future packaging milestone.
+
 ### Manual verification on Windows
 
 1. Launch the app. On first launch, expect a centered 360 × 500 DIP dark window
