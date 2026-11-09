@@ -1,14 +1,70 @@
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Automation;
+using DiscordFloatingWidget.Models;
+using DiscordFloatingWidget.Services;
 
 namespace DiscordFloatingWidget.Views;
 
 public partial class MainWindow : Window
 {
+    private readonly WindowStateService _layout;
     private Size? _compactSize;
+    private bool _closing, _allowClose;
 
-    public MainWindow()
+    public MainWindow(SettingsService settings, WindowLayout? initialLayout, string? loadWarning)
     {
         InitializeComponent();
+        _layout = new WindowStateService(this, settings, initialLayout);
+        _layout.Warning += ShowWarning;
+        SizeChanged += (_, _) => UpdateResponsiveLayout();
+        Closing += WindowClosing;
+        if (loadWarning is not null)
+        {
+            ContentRendered += ShowLoadWarning;
+            void ShowLoadWarning(object? sender, EventArgs e)
+            {
+                ContentRendered -= ShowLoadWarning;
+                ShowWarning(loadWarning);
+            }
+        }
+    }
+
+    private void UpdateResponsiveLayout()
+    {
+        var compact = ActualWidth < 260 || ActualHeight < 280;
+        HeaderTitle.Text = ActualWidth < 300 ? "DW" : "Discord Floating Widget";
+        FullPlaceholder.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        CompactPlaceholder.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
+        PlaceholderBadge.Visibility = ActualWidth < 340 || ActualHeight < 400 ? Visibility.Collapsed : Visibility.Visible;
+        Footer.Visibility = ActualWidth < 300 || ActualHeight < 340 ? Visibility.Collapsed : Visibility.Visible;
+        PlaceholderPanel.Margin = new Thickness(compact ? 6 : 16);
+        PlaceholderPanel.Padding = new Thickness(compact ? 2 : 20);
+    }
+
+    private void ShowWarning(string warning)
+    {
+        if (_closing)
+        {
+            MessageBox.Show(this, warning, "Window layout", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        // Queue so a native window-message callback never opens a modal dialog.
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (!_allowClose) MessageBox.Show(this, warning, "Window layout", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }));
+    }
+
+    private async void WindowClosing(object? sender, CancelEventArgs e)
+    {
+        if (_allowClose) return;
+        e.Cancel = true;
+        if (_closing) return;
+        _closing = true;
+        await _layout.StopAndSaveAsync();
+        _allowClose = true;
+        Close();
     }
 
     private void Minimize_Click(object sender, RoutedEventArgs e)
@@ -18,25 +74,19 @@ public partial class MainWindow : Window
 
     private void Expand_Click(object sender, RoutedEventArgs e)
     {
-        // Expanding changes the widget size instead of covering the whole desktop.
-        if (WindowState != WindowState.Normal)
-            WindowState = WindowState.Normal;
-
         if (_compactSize is Size compact)
         {
-            Width = compact.Width;
-            Height = compact.Height;
+            _layout.Resize(compact.Width, compact.Height);
             _compactSize = null;
             ExpandButton.ToolTip = "Expand";
-            System.Windows.Automation.AutomationProperties.SetName(ExpandButton, "Expand");
+            AutomationProperties.SetName(ExpandButton, "Expand");
         }
         else
         {
             _compactSize = new Size(ActualWidth, ActualHeight);
-            Width = Math.Max(Width, 720);
-            Height = Math.Max(Height, 700);
+            _layout.Resize(Math.Max(ActualWidth, 720), Math.Max(ActualHeight, 700));
             ExpandButton.ToolTip = "Restore compact size";
-            System.Windows.Automation.AutomationProperties.SetName(ExpandButton, "Restore compact size");
+            AutomationProperties.SetName(ExpandButton, "Restore compact size");
         }
     }
 }

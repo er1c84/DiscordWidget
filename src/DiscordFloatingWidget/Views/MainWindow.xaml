@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Discord Floating Widget" Width="360" Height="500"
-        MinWidth="300" MinHeight="240" WindowStartupLocation="CenterScreen"
+        MinWidth="180" MinHeight="120" WindowStartupLocation="Manual" Topmost="True"
         WindowStyle="None" ResizeMode="CanResize" FontFamily="Segoe UI"
         Background="{StaticResource BackgroundBrush}">
     <shell:WindowChrome.WindowChrome>
@@ -15,14 +15,15 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="44" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="32" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid Background="{StaticResource PanelBrush}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Discord Floating Widget" FontSize="12" FontWeight="SemiBold"
+                <TextBlock x:Name="HeaderTitle" Text="Discord Floating Widget" FontSize="12" FontWeight="SemiBold"
+                           ToolTip="Discord Floating Widget — drag this header to move"
                            Margin="12,0,4,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,6,0"
                             VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True">
@@ -34,22 +35,31 @@
                             ToolTip="Close application" AutomationProperties.Name="Close application" Click="Close_Click" />
                 </StackPanel>
             </Grid>
-            <Border Grid.Row="1" Margin="16" Background="{StaticResource PanelBrush}"
+            <Border x:Name="PlaceholderPanel" Grid.Row="1" Margin="16" Background="{StaticResource PanelBrush}"
                     CornerRadius="10" Padding="20">
-                <StackPanel VerticalAlignment="Center">
-                    <Border Width="44" Height="44" Background="{StaticResource AccentBrush}"
-                            CornerRadius="12" Margin="0,0,0,16">
-                        <TextBlock Text="DW" FontSize="16" FontWeight="Bold"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <TextBlock Text="Your chat, within reach." FontSize="17" FontWeight="SemiBold"
-                               TextAlignment="Center" TextWrapping="Wrap" />
-                    <TextBlock Text="Discord Web will appear here in a later milestone."
-                               Foreground="{StaticResource MutedBrush}" Margin="0,10,0,0"
-                               TextAlignment="Center" TextWrapping="Wrap" FontSize="12" />
-                </StackPanel>
+                <Grid>
+                    <StackPanel x:Name="CompactPlaceholder" Visibility="Collapsed" VerticalAlignment="Center">
+                        <TextBlock Text="Discord Web · later" FontSize="11" TextAlignment="Center"
+                                   Foreground="{StaticResource MutedBrush}" />
+                        <Button Style="{StaticResource HeaderButton}" Width="110" Height="28" Margin="0,4,0,0"
+                                Content="Expand widget" ToolTip="Expand to a larger window"
+                                AutomationProperties.Name="Expand widget" Click="Expand_Click" />
+                    </StackPanel>
+                    <StackPanel x:Name="FullPlaceholder" VerticalAlignment="Center">
+                        <Border x:Name="PlaceholderBadge" Width="44" Height="44" Background="{StaticResource AccentBrush}"
+                                CornerRadius="12" Margin="0,0,0,16">
+                            <TextBlock Text="DW" FontSize="16" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="Your chat, within reach." FontSize="17" FontWeight="SemiBold"
+                                   TextAlignment="Center" TextWrapping="Wrap" />
+                        <TextBlock Text="Discord Web will appear here in a later milestone."
+                                   Foreground="{StaticResource MutedBrush}" Margin="0,10,0,0"
+                                   TextAlignment="Center" TextWrapping="Wrap" FontSize="12" />
+                    </StackPanel>
+                </Grid>
             </Border>
-            <TextBlock Grid.Row="2" Text="Unofficial Discord companion" FontSize="11"
+            <TextBlock x:Name="Footer" Grid.Row="2" Text="Unofficial Discord companion" FontSize="11" Margin="0,0,0,16"
                        Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
         </Grid>
     </Border>

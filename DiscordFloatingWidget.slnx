@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="src/DiscordFloatingWidget/DiscordFloatingWidget.csproj" />
+  <Project Path="tests/DiscordFloatingWidget.Tests/DiscordFloatingWidget.Tests.csproj" />
 </Solution>
