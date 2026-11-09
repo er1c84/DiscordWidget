@@ -1,6 +1,8 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using DiscordFloatingWidget.Services;
 using DiscordFloatingWidget.Views;
@@ -45,6 +47,34 @@ public sealed class WindowLifecycleTests
                     Assert.Equal(Visibility.Collapsed, ((StackPanel)window.FindName("FullPlaceholder")).Visibility);
                     Assert.Equal("DW", ((TextBlock)window.FindName("HeaderTitle")).Text);
                     var expand = (Button)window.FindName("ExpandButton");
+                    window.ShowActivated = true; // Match production for foreground/maximized restoration.
+                    var originalHandle = new WindowInteropHelper(window).Handle;
+                    var originalBounds = new Rect(window.Left, window.Top, window.ActualWidth, window.ActualHeight);
+                    FocusManager.SetFocusedElement(window, expand);
+                    window.ToggleVisibility();
+                    await Idle();
+                    Assert.False(window.IsVisible);
+                    window.ToggleVisibility();
+                    await Idle();
+                    Assert.True(window.IsVisible);
+                    Assert.Equal(WindowState.Normal, window.WindowState);
+                    Assert.Equal(originalHandle, new WindowInteropHelper(window).Handle);
+                    Assert.Equal(originalBounds, new Rect(window.Left, window.Top, window.ActualWidth, window.ActualHeight));
+                    Assert.Same(expand, FocusManager.GetFocusedElement(window));
+
+                    window.WindowState = WindowState.Minimized;
+                    await Idle();
+                    window.ToggleVisibility();
+                    await Idle();
+                    Assert.True(window.IsVisible);
+                    Assert.Equal(WindowState.Normal, window.WindowState);
+                    Assert.Equal(originalBounds, new Rect(window.Left, window.Top, window.ActualWidth, window.ActualHeight));
+
+                    window.IsEnabled = false;
+                    window.ToggleVisibility();
+                    Assert.True(window.IsVisible); // Disabled modal owner must never be hidden.
+                    window.IsEnabled = true;
+
                     expand.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     await Idle();
                     Assert.True(window.ActualWidth > 180);
@@ -52,6 +82,16 @@ public sealed class WindowLifecycleTests
                     await Idle();
                     Assert.Equal(180, window.ActualWidth, 0);
                     Assert.Equal(120, window.ActualHeight, 0);
+
+                    window.WindowState = WindowState.Maximized;
+                    await Idle();
+                    window.ToggleVisibility();
+                    Assert.False(window.IsVisible);
+                    window.ToggleVisibility();
+                    await Idle();
+                    Assert.Equal(WindowState.Maximized, window.WindowState);
+                    window.WindowState = WindowState.Normal;
+                    await Idle();
 
                     window.Left += 24;
                     window.Top += 16;
@@ -76,6 +116,8 @@ public sealed class WindowLifecycleTests
                     var origin = restored.PointToScreen(new Point(0, 0));
                     Assert.InRange(Math.Abs(origin.X - saved.Left), 0, 2);
                     Assert.InRange(Math.Abs(origin.Y - saved.Top), 0, 2);
+                    restored.ToggleVisibility();
+                    Assert.False(restored.IsVisible);
                     await CloseAsync(restored);
                     completed.SetResult();
                 }

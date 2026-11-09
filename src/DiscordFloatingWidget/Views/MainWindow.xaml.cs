@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Automation;
+using System.Windows.Input;
+using System.Windows.Threading;
 using DiscordFloatingWidget.Models;
 using DiscordFloatingWidget.Services;
 
@@ -11,6 +13,7 @@ public partial class MainWindow : Window
     private readonly WindowStateService _layout;
     private Size? _compactSize;
     private bool _closing, _allowClose;
+    private IInputElement? _lastFocusedElement;
 
     public MainWindow(SettingsService settings, WindowLayout? initialLayout, string? loadWarning)
     {
@@ -69,6 +72,39 @@ public partial class MainWindow : Window
 
     private void Minimize_Click(object sender, RoutedEventArgs e)
         => WindowState = WindowState.Minimized;
+
+    public void ToggleVisibility()
+    {
+        // WPF disables an owner while a modal dialog is open. Keep it reachable.
+        if (_closing || !IsEnabled) return;
+        if (IsVisible && WindowState != WindowState.Minimized)
+        {
+            _lastFocusedElement = FocusManager.GetFocusedElement(this);
+            Hide();
+            return;
+        }
+
+        _lastFocusedElement = FocusManager.GetFocusedElement(this) ?? _lastFocusedElement;
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        _layout.RecoverVisibleLayout();
+        if (Activate())
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                if (IsVisible && IsActive && !_closing)
+                {
+                    if (_lastFocusedElement is UIElement { IsVisible: true, IsEnabled: true } element)
+                    {
+                        FocusManager.SetFocusedElement(this, element);
+                        Keyboard.Focus(element);
+                    }
+                    else
+                        MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+                }
+            }));
+        }
+    }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 

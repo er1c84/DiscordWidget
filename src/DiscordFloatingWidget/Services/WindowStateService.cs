@@ -105,6 +105,8 @@ public sealed class WindowStateService
         if (_window.WindowState == WindowState.Normal) QueueRecovery();
     }
 
+    public void RecoverVisibleLayout() => QueueRecovery();
+
     private nint WindowMessage(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
         // Let WPF handle DPI scaling and native caption/resize messages first.
