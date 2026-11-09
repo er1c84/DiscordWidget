@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Discord Floating Widget",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/DiscordFloatingWidget/bin/Debug/net10.0-windows/DiscordFloatingWidget.dll",
+      "cwd": "${workspaceFolder}/src/DiscordFloatingWidget",
+      "console": "internalConsole"
+    }
+  ]
+}

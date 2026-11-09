@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+TestResults/
+artifacts/
+# Never commit local settings or embedded browser sessions.
+**/WebView2/
+**/*.WebView2/
+**/UserData/
+settings.json
+.env

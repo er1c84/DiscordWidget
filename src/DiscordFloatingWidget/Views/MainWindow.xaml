@@ -1,0 +1,56 @@
+<Window x:Class="DiscordFloatingWidget.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Discord Floating Widget" Width="360" Height="500"
+        MinWidth="300" MinHeight="240" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" ResizeMode="CanResize" FontFamily="Segoe UI"
+        Background="{StaticResource BackgroundBrush}">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="6"
+                            GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+    <Border BorderBrush="{StaticResource RaisedBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="44" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="32" />
+            </Grid.RowDefinitions>
+            <Grid Background="{StaticResource PanelBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Discord Floating Widget" FontSize="12" FontWeight="SemiBold"
+                           Margin="12,0,4,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,6,0"
+                            VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource HeaderButton}" Content="&#x2212;"
+                            ToolTip="Minimize" AutomationProperties.Name="Minimize" Click="Minimize_Click" />
+                    <Button x:Name="ExpandButton" Style="{StaticResource HeaderButton}" Content="&#x25A1;"
+                            ToolTip="Expand" AutomationProperties.Name="Expand" Click="Expand_Click" />
+                    <Button Style="{StaticResource HeaderButton}" Content="&#x00D7;"
+                            ToolTip="Close application" AutomationProperties.Name="Close application" Click="Close_Click" />
+                </StackPanel>
+            </Grid>
+            <Border Grid.Row="1" Margin="16" Background="{StaticResource PanelBrush}"
+                    CornerRadius="10" Padding="20">
+                <StackPanel VerticalAlignment="Center">
+                    <Border Width="44" Height="44" Background="{StaticResource AccentBrush}"
+                            CornerRadius="12" Margin="0,0,0,16">
+                        <TextBlock Text="DW" FontSize="16" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Your chat, within reach." FontSize="17" FontWeight="SemiBold"
+                               TextAlignment="Center" TextWrapping="Wrap" />
+                    <TextBlock Text="Discord Web will appear here in a later milestone."
+                               Foreground="{StaticResource MutedBrush}" Margin="0,10,0,0"
+                               TextAlignment="Center" TextWrapping="Wrap" FontSize="12" />
+                </StackPanel>
+            </Border>
+            <TextBlock Grid.Row="2" Text="Unofficial Discord companion" FontSize="11"
+                       Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+        </Grid>
+    </Border>
+</Window>
