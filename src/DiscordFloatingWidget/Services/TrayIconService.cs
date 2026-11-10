@@ -18,6 +18,7 @@ internal sealed class TrayIconService : IDisposable
     internal Forms.ToolStripMenuItem VisibilityItem { get; } = new();
     internal Forms.ToolStripMenuItem StartupItem { get; } = new("Start with Windows");
     internal Forms.ToolStripMenuItem ExitItem { get; } = new("Exit");
+    internal Forms.ToolStripMenuItem ClearDataItem { get; } = new("Clear browser data…");
 
     internal TrayIconService(MainWindow window, StartupService startup)
     {
@@ -26,11 +27,12 @@ internal sealed class TrayIconService : IDisposable
         window.Dispatcher.VerifyAccess();
         _image = (Icon)SystemIcons.Application.Clone();
         _menu = new Forms.ContextMenuStrip { ShowItemToolTips = true };
-        _menu.Items.AddRange([VisibilityItem, StartupItem, new Forms.ToolStripSeparator(), ExitItem]);
+        _menu.Items.AddRange([VisibilityItem, StartupItem, ClearDataItem, new Forms.ToolStripSeparator(), ExitItem]);
         _menu.Opening += MenuOpening;
         VisibilityItem.Click += ToggleVisibility;
         StartupItem.Click += ToggleStartup;
         ExitItem.Click += Exit;
+        ClearDataItem.Click += ClearData;
         _icon = new Forms.NotifyIcon
         {
             Icon = _image,
@@ -55,7 +57,7 @@ internal sealed class TrayIconService : IDisposable
     {
         VisibilityItem.Text = _window.IsVisible && _window.WindowState != WindowState.Minimized
             ? "Hide Widget" : "Show Widget";
-        VisibilityItem.Enabled = StartupItem.Enabled = ExitItem.Enabled = !_window.IsExiting && _window.IsEnabled;
+        VisibilityItem.Enabled = StartupItem.Enabled = ExitItem.Enabled = ClearDataItem.Enabled = !_window.IsExiting && _window.IsEnabled;
         var (enabled, warning) = _startup.Read();
         StartupItem.Checked = enabled;
         StartupItem.Enabled &= warning is null;
@@ -72,6 +74,11 @@ internal sealed class TrayIconService : IDisposable
     }
 
     private void Exit(object? sender, EventArgs e) => Queue(_window.RequestExit);
+    private void ClearData(object? sender, EventArgs e) => Queue(async () =>
+    {
+        _window.ShowAndFocus();
+        await _window.ClearBrowserDataAsync();
+    });
 
     private void ToggleStartup(object? sender, EventArgs e) => Queue(() =>
     {
@@ -108,6 +115,7 @@ internal sealed class TrayIconService : IDisposable
         VisibilityItem.Click -= ToggleVisibility;
         StartupItem.Click -= ToggleStartup;
         ExitItem.Click -= Exit;
+        ClearDataItem.Click -= ClearData;
         _menu.Dispose();
         _image.Dispose();
     }

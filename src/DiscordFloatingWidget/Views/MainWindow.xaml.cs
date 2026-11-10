@@ -31,11 +31,17 @@ public partial class MainWindow : Window
     }
     internal bool IsExiting => _closing;
     internal event Action? Exiting;
+    internal DiscordView ContentView => DiscordContent;
 
-    public MainWindow(SettingsService settings, WindowLayout? initialLayout, string? loadWarning)
+    public MainWindow(SettingsService settings, WindowLayout? initialLayout, string? loadWarning,
+        FavoritesService? favorites = null, string? browserProfileDirectory = null)
     {
         InitializeComponent();
+        if (favorites is not null || browserProfileDirectory is not null)
+            DiscordContent.Configure(favorites ?? new FavoritesService(FavoritesService.DefaultPath),
+                browserProfileDirectory ?? DiscordWebService.DefaultProfileDirectory);
         _layout = new WindowStateService(this, settings, initialLayout);
+        DiscordContent.ExpandRequested += ExpandForDiscord;
         _layout.Warning += ShowWarning;
         SizeChanged += (_, _) => UpdateResponsiveLayout();
         Closing += WindowClosing;
@@ -54,12 +60,8 @@ public partial class MainWindow : Window
     {
         var compact = ActualWidth < 260 || ActualHeight < 280;
         HeaderTitle.Text = ActualWidth < 300 ? "DW" : "Discord Floating Widget";
-        FullPlaceholder.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-        CompactPlaceholder.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
-        PlaceholderBadge.Visibility = ActualWidth < 340 || ActualHeight < 400 ? Visibility.Collapsed : Visibility.Visible;
+        DiscordContent.IsCompact = compact;
         Footer.Visibility = ActualWidth < 300 || ActualHeight < 340 ? Visibility.Collapsed : Visibility.Visible;
-        PlaceholderPanel.Margin = new Thickness(compact ? 6 : 16);
-        PlaceholderPanel.Padding = new Thickness(compact ? 2 : 20);
     }
 
     private void ShowWarning(string warning)
@@ -74,13 +76,13 @@ public partial class MainWindow : Window
             if (!IsVisible) Show();
             if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
             Activate();
-            MessageBox.Show(this, warning, "Window layout", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, warning, "Discord Widget", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         // Queue so a native window-message callback never opens a modal dialog.
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            if (!_allowClose) MessageBox.Show(this, warning, "Window layout", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (!_allowClose) MessageBox.Show(this, warning, "Discord Widget", MessageBoxButton.OK, MessageBoxImage.Warning);
         }));
     }
 
@@ -96,6 +98,7 @@ public partial class MainWindow : Window
         }
         _closing = true;
         Exiting?.Invoke();
+        if (await DiscordContent.StopAsync() is { } favoritesWarning) ShowWarning(favoritesWarning);
         await _layout.StopAndSaveAsync();
         _allowClose = true;
         Close();
@@ -162,11 +165,22 @@ public partial class MainWindow : Window
         _sessionEnding = true;
         _exitRequested = _closing = true;
         Exiting?.Invoke();
+        if (DiscordContent.StopForSessionEnd() is { } favoritesWarning) Trace.TraceWarning(favoritesWarning);
         if (_layout.StopAndSaveForSessionEnd() is { } warning) Trace.TraceWarning(warning);
         _allowClose = true;
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    internal Task ClearBrowserDataAsync() => DiscordContent.ConfirmClearBrowserDataAsync();
+
+    private void ExpandForDiscord()
+    {
+        if (_compactSize is null) _compactSize = new Size(ActualWidth, ActualHeight);
+        _layout.Resize(Math.Max(ActualWidth, 720), Math.Max(ActualHeight, 700));
+        ExpandButton.ToolTip = "Restore compact size";
+        AutomationProperties.SetName(ExpandButton, "Restore compact size");
+    }
 
     private void Expand_Click(object sender, RoutedEventArgs e)
     {

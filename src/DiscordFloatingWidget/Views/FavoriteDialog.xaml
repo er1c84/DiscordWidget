@@ -1,0 +1,30 @@
+<Window x:Class="DiscordFloatingWidget.Views.FavoriteDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add favorite" Width="440" SizeToContent="Height" MinWidth="320"
+        ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{StaticResource BackgroundBrush}" Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI">
+    <StackPanel Margin="20">
+        <TextBlock Text="Name" Margin="0,0,0,6" />
+        <TextBox x:Name="NameBox" MaxLength="80" Style="{StaticResource InputField}"
+                 AutomationProperties.Name="Favorite name" />
+        <TextBlock Text="Conversation type" Margin="0,14,0,6" />
+        <ComboBox x:Name="TypeBox" SelectedIndex="0" Padding="6" Foreground="#1E1F22" AutomationProperties.Name="Conversation type">
+            <ComboBoxItem><TextBlock Text="Friend / direct message" Foreground="#1E1F22" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Group direct message" Foreground="#1E1F22" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Server channel" Foreground="#1E1F22" /></ComboBoxItem>
+        </ComboBox>
+        <TextBlock Text="Discord conversation link" Margin="0,14,0,6" />
+        <TextBox x:Name="LinkBox" MaxLength="2048" Style="{StaticResource InputField}"
+                 AutomationProperties.Name="Discord conversation link" />
+        <TextBlock Text="Open the conversation in Discord Web and copy its URL. A copied message link also works."
+                   Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" FontSize="11" Margin="0,8,0,0" />
+        <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="#FFB8B8" Margin="0,10,0,0"
+                   AutomationProperties.LiveSetting="Polite" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Cancel" IsCancel="True" Style="{StaticResource ActionButton}" />
+            <Button Content="Save favorite" IsDefault="True" Click="Save_Click" Style="{StaticResource ActionButton}"
+                    Background="{StaticResource AccentBrush}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

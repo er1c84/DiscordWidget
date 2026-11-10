@@ -10,4 +10,5 @@ artifacts/
 **/*.WebView2/
 **/UserData/
 settings.json
+favorites.json
 .env

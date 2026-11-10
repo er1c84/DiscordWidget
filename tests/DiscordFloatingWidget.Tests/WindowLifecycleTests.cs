@@ -4,7 +4,10 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using DiscordFloatingWidget.Services;
+using DiscordFloatingWidget.Models;
 using DiscordFloatingWidget.Views;
 using Microsoft.Win32;
 using Xunit;
@@ -33,9 +36,27 @@ public sealed class WindowLifecycleTests
                 try
                 {
                     var settings = new SettingsService(Path.Combine(directory, "settings.json"));
-                    var window = new MainWindow(settings, null, null) { ShowActivated = false };
+                    var favorites = new FavoritesService(Path.Combine(directory, "favorites.json"));
+                    var browserProfile = Path.Combine(directory, "WebView2");
+                    var window = new MainWindow(settings, null, null, favorites, browserProfile) { ShowActivated = false };
                     window.Show();
                     await Idle();
+                    await window.ContentView.LoadFavoritesAsync();
+                    Assert.True(((Button)window.ContentView.FindName("AddButton")).IsEnabled);
+                    Assert.Equal(Visibility.Visible, ((Grid)window.ContentView.FindName("PickerPanel")).Visibility);
+                    var friend = FavoritesTests.Create("Test friend", ConversationType.DirectMessage, "https://discord.com/channels/@me/123");
+                    Assert.Null(await window.ContentView.SaveFavoritesAsync([friend]));
+                    Assert.Equal(friend, Assert.Single(window.ContentView.Favorites));
+                    await Idle();
+                    CaptureIfRequested(window);
+                    if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISCORD_WIDGET_SCREENSHOT")))
+                    {
+                        var editor = new FavoriteDialog(window, friend) { ShowActivated = false };
+                        editor.Show();
+                        await Idle();
+                        CaptureIfRequested(editor, "editor");
+                        editor.Close();
+                    }
                     Directory.CreateDirectory(directory);
                     var executable = Path.Combine(directory, "Test widget.exe");
                     File.WriteAllText(executable, "Test fixture; never executed.");
@@ -82,8 +103,8 @@ public sealed class WindowLifecycleTests
                     await Idle();
                     Assert.Equal(180, window.ActualWidth, 0);
                     Assert.Equal(120, window.ActualHeight, 0);
-                    Assert.Equal(Visibility.Visible, ((StackPanel)window.FindName("CompactPlaceholder")).Visibility);
-                    Assert.Equal(Visibility.Collapsed, ((StackPanel)window.FindName("FullPlaceholder")).Visibility);
+                    Assert.True(window.ContentView.IsCompact);
+                    Assert.Equal(Visibility.Visible, ((StackPanel)window.ContentView.FindName("CompactPanel")).Visibility);
                     Assert.Equal("DW", ((TextBlock)window.FindName("HeaderTitle")).Text);
                     var expand = (Button)window.FindName("ExpandButton");
                     window.ShowActivated = true; // Match production for foreground/maximized restoration.
@@ -154,9 +175,13 @@ public sealed class WindowLifecycleTests
                     Assert.Equal(180, saved.Width, 0);
                     Assert.Equal(120, saved.Height, 0);
 
-                    var restored = new MainWindow(settings, saved, null) { ShowActivated = false };
+                    var restored = new MainWindow(settings, saved, null, new FavoritesService(Path.Combine(directory, "favorites.json")), browserProfile)
+                        { ShowActivated = false };
                     restored.Show();
                     await Idle();
+                    await restored.ContentView.LoadFavoritesAsync();
+                    Assert.Equal(friend, Assert.Single(restored.ContentView.Favorites));
+                    await BrowserProfileCheckAsync(Path.Combine(directory, "BrowserCheck"));
                     Assert.Equal(WindowState.Normal, restored.WindowState);
                     Assert.Equal(180, restored.ActualWidth, 0);
                     Assert.Equal(120, restored.ActualHeight, 0);
@@ -178,7 +203,7 @@ public sealed class WindowLifecycleTests
         }) { IsBackground = true };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        try { await completed.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken); }
+        try { await completed.Task.WaitAsync(TimeSpan.FromSeconds(90), TestContext.Current.CancellationToken); }
         finally
         {
             if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
@@ -187,6 +212,80 @@ public sealed class WindowLifecycleTests
     }
 
     private static async Task Idle() => await Dispatcher.CurrentDispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+
+    private static async Task BrowserProfileCheckAsync(string profile)
+    {
+        var host = new ContentControl();
+        var window = new Window { Content = host, Width = 600, Height = 400, ShowActivated = false, Title = "Widget browser check" };
+        window.Show();
+        var browser = new DiscordWebService(host, profile);
+        try
+        {
+            Assert.True(await browser.EnsureAsync(), browser.Status);
+            Assert.False(browser.Core!.Settings.AreHostObjectsAllowed);
+            Assert.False(browser.Core.Settings.IsWebMessageEnabled);
+            Assert.False(browser.Core.Settings.IsPasswordAutosaveEnabled);
+            // A synthetic cookie in a unique test profile verifies the native clear
+            // API. Never inspect the real user's profile or Discord authentication.
+            var cookie = browser.Core.CookieManager.CreateCookie("widget_test", "fixture", "example.test", "/");
+            cookie.Expires = DateTime.UtcNow.AddDays(1);
+            browser.Core.CookieManager.AddOrUpdateCookie(cookie);
+            Assert.Single(await browser.Core.CookieManager.GetCookiesAsync("https://example.test/"));
+            await DisposeBrowserAsync(browser);
+            browser = new DiscordWebService(host, profile);
+            Assert.True(await browser.EnsureAsync(), browser.Status);
+            Assert.Single(await browser.Core!.CookieManager.GetCookiesAsync("https://example.test/"));
+            Assert.True(await browser.ClearDataAsync(), browser.Status);
+            Assert.Equal(DiscordUrlPolicy.Home, browser.RequestedDestination);
+            Assert.True(await browser.EnsureAsync(), browser.Status);
+            Assert.Empty(await browser.Core!.CookieManager.GetCookiesAsync("https://example.test/"));
+            var smokePath = Environment.GetEnvironmentVariable("DISCORD_WIDGET_NETWORK_SMOKE");
+            if (!string.IsNullOrWhiteSpace(smokePath))
+            {
+                // Explicit opt-in integration check: load the public Discord page
+                // in the temporary, unauthenticated profile. No login automation.
+                var loaded = new TaskCompletionSource<Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                browser.Core.NavigationCompleted += (_, args) => loaded.TrySetResult(args);
+                await browser.NavigateAsync(DiscordUrlPolicy.Home);
+                var navigation = await loaded.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+                Directory.CreateDirectory(Path.GetDirectoryName(smokePath)!);
+                await File.WriteAllTextAsync(smokePath,
+                    $"Public Discord page load: success={navigation.IsSuccess}; HTTP={navigation.HttpStatusCode}; error={navigation.WebErrorStatus}",
+                    TestContext.Current.CancellationToken);
+                Assert.True(navigation.IsSuccess, browser.Status);
+            }
+        }
+        finally
+        {
+            await DisposeBrowserAsync(browser);
+            window.Close();
+        }
+    }
+
+    private static async Task DisposeBrowserAsync(DiscordWebService browser)
+    {
+        var environment = browser.Core?.Environment;
+        var exited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (environment is not null) environment.BrowserProcessExited += (_, _) => exited.TrySetResult();
+        browser.Dispose();
+        if (environment is not null)
+            await exited.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+    }
+
+    private static void CaptureIfRequested(Window window, string? suffix = null)
+    {
+        var path = Environment.GetEnvironmentVariable("DISCORD_WIDGET_SCREENSHOT");
+        if (string.IsNullOrWhiteSpace(path)) return;
+        if (suffix is not null) path = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "-" + suffix + ".png");
+        var bitmap = new RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(window);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var output = File.Create(path);
+        encoder.Save(output);
+    }
 
     private static Task CloseAsync(Window window)
     {

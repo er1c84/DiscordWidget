@@ -2,6 +2,114 @@
 A lightweight floating Discord chat widget for Windows built with C# and WPF.
 An independent, unofficial Discord companion.
 
+## Milestone 5: Discord Web and a native favorites picker
+
+The widget now starts on **Your favorites**. Add named links for friends, group
+DMs, and server text channels, then choose a favorite to open it in Discord's
+actual web interface. **Open Discord** opens Discord without needing a favorite.
+Favorites are manually configured shortcuts; the app does not import your friends,
+servers or message history.
+
+### Run the current build
+
+Fully exit any running widget through its tray menu before rebuilding. X only
+hides it, so a rebuild can fail with a locked-executable warning while it is running.
+
+```powershell
+dotnet build .\DiscordFloatingWidget.slnx --configuration Release
+dotnet test --solution .\DiscordFloatingWidget.slnx --configuration Release --no-build
+dotnet run --project .\src\DiscordFloatingWidget\DiscordFloatingWidget.csproj --configuration Release --no-build
+```
+
+The desktop shortcut opens that same Release build. Reopening it or using the
+last command restores the running widget without rebuilding. If Microsoft Edge
+WebView2 Runtime is missing, the app provides its official download link and an
+**Open in Browser** fallback. Install the Runtime yourself and choose Reload to
+retry. The app uses Microsoft's stable WebView2 SDK package **1.0.4314.35** and the
+installed Evergreen Runtime, with normal browser security enabled.
+
+### Favorites and navigation
+
+- **+ Add** asks for a name, conversation type, and Discord conversation URL.
+  Open the conversation in Discord Web in a normal browser and copy its address.
+- Friend and group DM links use `https://discord.com/channels/@me/CONVERSATION_ID`.
+  Server links use `https://discord.com/channels/SERVER_ID/CHANNEL_ID`.
+- A copied message link is reduced to its conversation. Query strings and fragments
+  are removed; login routes, non-Discord hosts, and invalid IDs cannot be saved.
+- Use the pencil to edit a favorite and X beside it to remove it with confirmation.
+  Names are unique ignoring case; the initial limit is 100 favorites.
+- The toolbar provides **Favorites (star)**, **Back**, **Reload**, **Open in Browser**,
+  and **Browser options (three dots)**. Toolbar icons have keyboard focus and tooltips.
+- Clicking an ordinary external HTTP/HTTPS link opens your default browser. Other
+  protocols and automatic external redirects are not launched by the app.
+- At very small sizes, native Favorites/Expand controls remain available. When a
+  Discord viewport would be smaller than 480 by 320 DIPs, select **Expand** to view
+  the webpage. The window's native header and expand/restore button remain usable.
+- Returning to Favorites or hiding the window keeps the same browser instance alive.
+  Network failures, missing Runtime, and browser-process failures provide recovery
+  messages, Reload, and browser fallback rather than bypassing website restrictions.
+
+### Login, local data, and clearing the browser profile
+
+Sign in yourself using Discord's actual login page, including any QR, 2FA or CAPTCHA
+that Discord requires. The widget does not collect credentials, import another
+browser's session, request a user token, scrape Discord, or automate messages.
+
+Files are kept outside the repository under `%LOCALAPPDATA%\DiscordFloatingWidget`:
+
+- `favorites.json`: versioned, manually saved names/types/conversation URLs.
+- `settings.json`: the existing window layout.
+- `WebView2\`: the widget's dedicated browser cookies, site data and cache.
+
+The dedicated profile is reused between launches so Discord can preserve login
+when its own session rules allow it. Password autosave and general autofill are
+disabled. Browser profile files and favorites are excluded from Git. Corrupt or
+future-version favorites files are preserved and editing is disabled until the
+file is renamed after exiting; a warning explains recovery. Writes replace a
+same-folder temporary file, and failed saves keep the previous list.
+
+Use **Browser options > Clear browser data** or the tray's **Clear browser data**
+command. It asks for confirmation, unloads Discord, and clears this widget's browser
+profile using WebView2's native API. It signs you out while preserving favorites,
+window layout, startup preference, and other browsers. Reopen Discord to sign in.
+
+### Verification and current limits
+
+The Release build and automated tests cover favorites validation/persistence,
+malformed data and failed writes, URL trust boundaries, native picker startup and
+compact layout, WebView2 initialization with isolated data, synthetic-cookie
+persistence across browser restarts, profile clearing, and the existing layout,
+tray, hotkey, single-instance and startup features. An explicit integration check
+successfully loaded Discord's public page (HTTP 200) in a temporary unsigned-in
+profile. Authentication, reading/sending real messages, and Discord session renewal
+still require your manual check; this does not claim complete Discord compatibility.
+
+Try the following on your account:
+
+1. Open Discord and expand the widget if prompted. Complete sign-in yourself.
+2. Open a DM, group DM and server text channel. Read existing messages, scroll and
+   send a test message yourself in a suitable conversation.
+3. Save a few copied conversation URLs. Test opening, editing and removing them.
+   Exit and relaunch: favorites should return and the home screen should be the
+   native picker. Verify your Discord session persists when Discord permits it.
+4. Use Back, Reload, Favorites, and an ordinary website link. Check that external
+   links open in your default browser and Open in Browser opens the current
+   conversation. Your default browser has its own sign-in session.
+5. Resize, expand/restore, hide/show, minimize, use Ctrl+Shift+D, and relaunch through
+   the desktop shortcut. Confirm one widget instance and no unnecessary reload.
+6. Cancel Clear browser data once, then confirm it when ready. Check that the
+   widget signs out, favorites/layout remain, and your normal browser stays signed
+   in. Reopen Discord and sign in again yourself.
+7. Disconnect/reconnect the network, then try Reload. If Discord rejects the
+   embedded environment, use Open in Browser and report the issue; do not bypass it.
+
+This milestone focuses on text chat. Voice/video, notifications/unread counts,
+attachment downloads inside the widget, favorite reordering/custom icons, and an
+installer remain future work. Camera/microphone/location/notification permissions
+are not granted; clipboard read follows normal browser consent. Download attempts
+show a message directing you to Open in Browser. No native API or message bridge
+is exposed to Discord's page. See [compatibility notes](docs/LIMITATIONS.md).
+
 ## Milestone 4: tray, single instance, and optional startup
 
 The widget now stays available in the Windows notification area while it runs:
@@ -10,7 +118,7 @@ The widget now stays available in the Windows notification area while it runs:
 - **Minimize** still minimizes to the taskbar.
 - Double-click the **Discord Widget** tray icon to show and focus the widget.
 - Right-click the icon for **Show Widget / Hide Widget**, **Start with Windows**,
-  and **Exit**. A minimized widget gets **Show Widget**.
+  **Clear browser data**, and **Exit**. A minimized widget gets **Show Widget**.
 - **Ctrl + Shift + D** keeps its existing show/hide behavior.
 - Opening the desktop shortcut again restores the existing window rather than
   starting another widget, including when the existing window is hidden/minimized.
@@ -187,7 +295,7 @@ creates shortcuts for other users is planned for a future packaging milestone.
 ### Manual verification on Windows
 
 1. Launch the app. On first launch, expect a centered 360 × 500 DIP dark window
-   with **Your chat, within reach.** Later launches should restore saved bounds.
+   with the **Your favorites** picker. Later launches should restore saved bounds.
 2. Put an ordinary application in front of it: the widget should stay above it.
    Other topmost windows, exclusive fullscreen apps, and secure desktop prompts
    can still cover it.
@@ -257,7 +365,13 @@ browser data are part of these settings; local settings are excluded from Git.
 - `App.xaml` / `App.xaml.cs`: theme, asynchronous settings load, global shortcut
   registration, tray/instance coordination, and explicit shutdown cleanup.
 - `Resources/Theme.xaml`: existing dark colors and keyboard focus styles.
-- `Views/MainWindow.xaml`: topmost custom header and responsive placeholder views.
+- `Views/MainWindow.xaml`: topmost custom header and responsive Discord content host.
+- `Views/DiscordView.xaml` / `.cs`: native favorites picker, toolbar, compact view and browser lifecycle.
+- `Views/FavoriteDialog.xaml` / `.cs`: named conversation URL editor.
+- `Models/FavoriteConversation.cs`: validated saved favorite and conversation type.
+- `Services/FavoritesService.cs`: versioned, atomic favorites persistence.
+- `Services/DiscordWebService.cs`: lazy WebView2, persistent profile, navigation and clearing.
+- `Services/DiscordUrlPolicy.cs` / `ExternalBrowser.cs`: trusted navigation and browser fallback.
 - `Views/MainWindow.xaml.cs`: responsive presentation, window buttons and visibility/
   focus restoration on the existing window.
 - `Models/WindowLayout.cs`: validated saved geometry, with explicit units.
@@ -294,16 +408,14 @@ and [.NET 10 test-runner configuration](https://learn.microsoft.com/en-us/dotnet
 
 ### Scope and commit
 
-Milestone 4 adds tray integration, one instance per Windows user/session, and an
-optional Start with Windows setting. Discord Web/WebView2, favorites, notifications,
-and a distributable installer remain unimplemented. This placeholder does not
-claim that Discord Web will be usable at the minimum window size. Discord
-login/chat is planned for Milestone 5.
+Milestone 5 integrates Discord Web with persistent browser data and brings a basic
+favorites picker forward from Milestone 6. Voice/video, notifications/unread state,
+favorite reordering/custom icons, and public installer packaging remain future work.
 
 Commit message:
 
 ```text
-feat: add tray integration and optional Windows startup
+feat: integrate Discord Web with a favorites picker
 ```
 
 Commit locally; do not push for this milestone.
