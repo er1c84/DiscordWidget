@@ -41,9 +41,17 @@ public partial class MainWindow : Window
             DiscordContent.Configure(favorites ?? new FavoritesService(FavoritesService.DefaultPath),
                 browserProfileDirectory ?? DiscordWebService.DefaultProfileDirectory);
         _layout = new WindowStateService(this, settings, initialLayout);
-        DiscordContent.ExpandRequested += ExpandForDiscord;
+        DiscordContent.CompactSizeRequested += () =>
+        {
+            _layout.Resize(320, 420);
+            _compactSize = null;
+            ExpandButton.ToolTip = "Expand";
+            AutomationProperties.SetName(ExpandButton, "Expand");
+        };
+        DiscordContent.ConversationChanged += title => HeaderTitle.Text = title;
         _layout.Warning += ShowWarning;
-        SizeChanged += (_, _) => UpdateResponsiveLayout();
+        IsVisibleChanged += (_, _) => UpdateBrowserVisibility();
+        StateChanged += (_, _) => UpdateBrowserVisibility();
         Closing += WindowClosing;
         if (loadWarning is not null)
         {
@@ -56,13 +64,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void UpdateResponsiveLayout()
-    {
-        var compact = ActualWidth < 260 || ActualHeight < 280;
-        HeaderTitle.Text = ActualWidth < 300 ? "DW" : "Discord Floating Widget";
-        DiscordContent.IsCompact = compact;
-        Footer.Visibility = ActualWidth < 300 || ActualHeight < 340 ? Visibility.Collapsed : Visibility.Visible;
-    }
+    private void UpdateBrowserVisibility() => DiscordContent.SetWindowVisible(IsVisible && WindowState != WindowState.Minimized);
 
     private void ShowWarning(string warning)
     {
@@ -173,14 +175,6 @@ public partial class MainWindow : Window
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     internal Task ClearBrowserDataAsync() => DiscordContent.ConfirmClearBrowserDataAsync();
-
-    private void ExpandForDiscord()
-    {
-        if (_compactSize is null) _compactSize = new Size(ActualWidth, ActualHeight);
-        _layout.Resize(Math.Max(ActualWidth, 720), Math.Max(ActualHeight, 700));
-        ExpandButton.ToolTip = "Restore compact size";
-        AutomationProperties.SetName(ExpandButton, "Restore compact size");
-    }
 
     private void Expand_Click(object sender, RoutedEventArgs e)
     {

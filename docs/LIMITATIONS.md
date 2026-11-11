@@ -21,8 +21,13 @@ this app. An HTTP 200 alone does not establish that every Discord feature works.
 - Use Discord's own login and text UI. Complete authentication yourself.
 - Use manually named conversation URL shortcuts. Friends/server membership are
   not discovered via private APIs or DOM scraping.
-- Keep browser security and certificate checks enabled. No injected scripts,
-  account automation, host objects, or web-to-native message bridge are used.
+- Keep browser security and certificate checks enabled. The explicitly enabled
+  compact prototype adds a presentation script to top-level HTTPS discord.com
+  pages. It checks layout structure and changes styles only for recognized DM
+  routes. It does not read message text, credentials, cookies, React state or
+  private APIs, or send page content to the app. No account automation, host
+  objects, or web-to-native message bridge are used. This experimental departure
+  from Milestone 5's unmodified-page approach can be disabled in the options menu.
 - If login or chat is blocked in the embedded environment, use Open in Browser
   and report the limitation. The browser uses its own Discord session.
 - Non-Discord HTTP/HTTPS links open externally only for user-initiated navigation;
@@ -43,6 +48,12 @@ cookies, authentication headers, message text, or navigation query strings.
 WebView2 may need a short interval to exit its browser process after its final
 control is disposed. Tests wait for BrowserProcessExited before removing their
 own temporary directories. Test captures contain synthetic favorite names only.
+
+The compact prototype retains one WebView2 instance. It requests suspension after
+60 seconds hidden/minimized and resumes it when shown. Suspension is best effort,
+pauses page updates, and does not guarantee a fixed CPU or memory reduction. The
+minimum usable window is now 260 × 300 DIPs (or the available work area on a
+smaller display). See [prototype verification](COMPACT-PROTOTYPE.md).
 
 References:
 

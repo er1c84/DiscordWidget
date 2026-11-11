@@ -14,5 +14,6 @@
     <Using Remove="System.Drawing" />
     <PackageReference Include="xunit.v3" Version="4.0.3" />
     <ProjectReference Include="../../src/DiscordFloatingWidget/DiscordFloatingWidget.csproj" />
+    <EmbeddedResource Include="Fixtures\discord-focus.html" />
   </ItemGroup>
 </Project>

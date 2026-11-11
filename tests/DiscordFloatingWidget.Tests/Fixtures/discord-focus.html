@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+html,body {height:100%;margin:0;font:14px 'Segoe UI',sans-serif;color:#eee;background:#202126}
+#app-mount,.layers_fixture {height:100%} .base_fixture {display:flex;flex-direction:column;height:100%;min-width:800px}
+.desktopTitle_fixture {height:30px;flex-shrink:0;background:#35363c}.workspace_fixture{display:flex;flex:1;min-height:0}
+nav{width:70px;flex-shrink:0;background:#282930}aside{width:240px;flex-shrink:0;background:#303139}
+.chat_fixture{display:flex;flex-direction:column;flex:1;min-width:400px}.chatHeader_fixture{height:44px;flex-shrink:0}
+main {display:flex;flex-direction:column;flex:1;min-height:0;min-width:400px}.scroller_fixture{flex:1;overflow:auto;min-height:0;padding:12px}
+ol{margin:0;padding:0;list-style:none}li{margin:8px 0 20px}strong{display:block;font-size:12px;color:#b7b8c5}
+form{flex-shrink:0;margin:0 12px 12px}.channelTextArea_fixture{background:#303139;border-radius:8px;padding:10px;display:flex}
+[role=textbox]{min-height:22px;flex:1;outline:none}.buttons_fixture{width:80px}.layerContainer_fixture{position:absolute;right:5px;top:5px}
+</style></head><body>
+<div id="app-mount"><div class="layers_fixture"><div class="base_fixture">
+<div class="desktopTitle_fixture">Discord</div><div class="workspace_fixture">
+<nav>Servers</nav><aside>All conversations</aside><section class="chat_fixture">
+<header class="chatHeader_fixture">Conversation toolbar</header><main>
+<div class="scroller_fixture"><ol data-list-id="chat-messages">
+<li><strong>Maya</strong>Want to grab coffee later?</li><li><strong>You</strong>Yep! Around four?</li>
+<li><strong>Maya</strong>Perfect. Same place as last time.</li></ol></div>
+<form><div class="channelTextArea_fixture"><div role="textbox" contenteditable="true" aria-label="Sample message"></div><div class="buttons_fixture">Extras</div></div></form>
+</main></section></div></div></div><div class="layerContainer_fixture" id="overlays"></div></div>
+<script>window.fixtureTicks = 0; setInterval(() => { window.fixtureTicks++; }, 100);</script>
+</body></html>

@@ -11,4 +11,5 @@ artifacts/
 **/UserData/
 settings.json
 favorites.json
+preferences.json
 .env

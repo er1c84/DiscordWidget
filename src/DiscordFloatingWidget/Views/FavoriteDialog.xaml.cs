@@ -12,6 +12,8 @@ public partial class FavoriteDialog : Window
     {
         InitializeComponent();
         Owner = owner;
+        // Existing channel favorites remain editable, but new favorites are DMs.
+        if (favorite?.Type != ConversationType.ServerChannel) TypeBox.Items.RemoveAt(2);
         _id = favorite?.Id ?? Guid.NewGuid();
         if (favorite is not null)
         {

@@ -8,6 +8,9 @@ public enum ConversationType { DirectMessage, GroupDirectMessage, ServerChannel 
 public sealed record FavoriteConversation(Guid Id, string Name, ConversationType Type, string Url)
 {
     [JsonIgnore]
+    public string IconLabel => Type == ConversationType.GroupDirectMessage ? "♧" :
+        System.Globalization.StringInfo.GetNextTextElement(Name).ToUpperInvariant();
+    [JsonIgnore]
     public string TypeLabel => Type switch
     {
         ConversationType.DirectMessage => "Friend / direct message",

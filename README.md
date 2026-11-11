@@ -2,13 +2,32 @@
 A lightweight floating Discord chat widget for Windows built with C# and WPF.
 An independent, unofficial Discord companion.
 
-## Milestone 5: Discord Web and a native favorites picker
+## Compact chat prototype
 
-The widget now starts on **Your favorites**. Add named links for friends, group
-DMs, and server text channels, then choose a favorite to open it in Discord's
-actual web interface. **Open Discord** opens Discord without needing a favorite.
-Favorites are manually configured shortcuts; the app does not import your friends,
-servers or message history.
+The prototype uses a dark, compact frame with two small, labeled tabs: **Discord**
+and **Favorites**. Both stay visible at the minimum size, with a highlighted active
+tab and a clear keyboard focus outline. The 28-DIP tabs share a slim toolbar with
+Add and Options. Switching tabs keeps the same browser and unsent draft.
+The Options menu uses a dark background, light text, and clear highlighted and
+disabled states to match the widget.
+It restores your last selected favorite on launch; if none is saved, it shows
+**Your favorites**. New windows start at 320 × 420 DIPs and can shrink to 260 × 300
+without replacing the conversation with an Expand prompt. Existing saved window
+sizes are preserved: choose **⋯ → Compact size** to try the new size.
+
+**Chat-only view (experimental)** attempts to hide Discord's navigation around a
+recognized DM conversation. The message list and typing box are still Discord's.
+This is an experimental webpage presentation change, not an official Discord
+integration or a native replacement client. Unknown layouts stay in their normal
+view. Turn the option off under **⋯** to restore the standard webpage at any time.
+The selectors need real-account verification and may need updates when Discord
+changes its page. See [prototype details and acceptance checks](docs/COMPACT-PROTOTYPE.md).
+
+After 60 seconds hidden or minimized, the widget asks WebView2 to suspend the page.
+It resumes when shown, without intentionally reloading the conversation or clearing
+the draft. Updates pause while suspended; suspension is best effort. The app still
+runs Discord's browser engine while active, so cosmetic changes alone do not
+establish lower CPU or memory use.
 
 ### Run the current build
 
@@ -30,22 +49,26 @@ installed Evergreen Runtime, with normal browser security enabled.
 
 ### Favorites and navigation
 
-- **+ Add** asks for a name, conversation type, and Discord conversation URL.
+- **+** asks for a name, friend/group type, and Discord conversation URL.
   Open the conversation in Discord Web in a normal browser and copy its address.
 - Friend and group DM links use `https://discord.com/channels/@me/CONVERSATION_ID`.
-  Server links use `https://discord.com/channels/SERVER_ID/CHANNEL_ID`.
+  Existing saved server links are preserved in **Favorites**. New server favorites
+  are outside this prototype.
 - A copied message link is reduced to its conversation. Query strings and fragments
   are removed; login routes, non-Discord hosts, and invalid IDs cannot be saved.
-- Use the pencil to edit a favorite and X beside it to remove it with confirmation.
+- Open **Favorites**, then use the pencil to edit a favorite and X beside it to remove it with confirmation.
   Names are unique ignoring case; the initial limit is 100 favorites.
-- The toolbar provides **Favorites (star)**, **Back**, **Reload**, **Open in Browser**,
-  and **Browser options (three dots)**. Toolbar icons have keyboard focus and tooltips.
+- Select a saved conversation in **Favorites** to open the **Discord** tab.
+  Click **Discord** to return to the current conversation without reloading it.
+  Use Tab to focus the tab strip and arrow keys to switch tabs.
+  **⋯** contains favorites management, compact size, Back, Reload, Open Discord,
+  Open in Browser, the focus-view toggle, and Clear browser data.
 - Clicking an ordinary external HTTP/HTTPS link opens your default browser. Other
   protocols and automatic external redirects are not launched by the app.
-- At very small sizes, native Favorites/Expand controls remain available. When a
-  Discord viewport would be smaller than 480 by 320 DIPs, select **Expand** to view
-  the webpage. The window's native header and expand/restore button remain usable.
-- Returning to Favorites or hiding the window keeps the same browser instance alive.
+- The browser stays visible at small sizes. Expand/restore remains available in the
+  native title bar for login screens or layouts that need more room.
+- Returning to Favorites keeps the same browser instance. Hiding/minimizing starts
+  the 60-second sleep timer; restoring cancels it or resumes the sleeping page.
   Network failures, missing Runtime, and browser-process failures provide recovery
   messages, Reload, and browser fallback rather than bypassing website restrictions.
 
@@ -53,12 +76,13 @@ installed Evergreen Runtime, with normal browser security enabled.
 
 Sign in yourself using Discord's actual login page, including any QR, 2FA or CAPTCHA
 that Discord requires. The widget does not collect credentials, import another
-browser's session, request a user token, scrape Discord, or automate messages.
+browser's session, request a user token, extract Discord messages, or automate messages.
 
 Files are kept outside the repository under `%LOCALAPPDATA%\DiscordFloatingWidget`:
 
 - `favorites.json`: versioned, manually saved names/types/conversation URLs.
 - `settings.json`: the existing window layout.
+- `preferences.json`: last favorite ID and the experimental focus-view preference.
 - `WebView2\`: the widget's dedicated browser cookies, site data and cache.
 
 The dedicated profile is reused between launches so Discord can preserve login
@@ -68,7 +92,7 @@ future-version favorites files are preserved and editing is disabled until the
 file is renamed after exiting; a warning explains recovery. Writes replace a
 same-folder temporary file, and failed saves keep the previous list.
 
-Use **Browser options > Clear browser data** or the tray's **Clear browser data**
+Use **⋯ → Clear browser data** or the tray's **Clear browser data**
 command. It asks for confirmation, unloads Discord, and clears this widget's browser
 profile using WebView2's native API. It signs you out while preserving favorites,
 window layout, startup preference, and other browsers. Reopen Discord to sign in.
@@ -86,13 +110,13 @@ still require your manual check; this does not claim complete Discord compatibil
 
 Try the following on your account:
 
-1. Open Discord and expand the widget if prompted. Complete sign-in yourself.
-2. Open a DM, group DM and server text channel. Read existing messages, scroll and
+1. Open Discord and complete sign-in yourself. Expand manually if login needs more room.
+2. Open a DM and group DM. Read existing messages, scroll and
    send a test message yourself in a suitable conversation.
 3. Save a few copied conversation URLs. Test opening, editing and removing them.
-   Exit and relaunch: favorites should return and the home screen should be the
-   native picker. Verify your Discord session persists when Discord permits it.
-4. Use Back, Reload, Favorites, and an ordinary website link. Check that external
+   Exit and relaunch: favorites and the last selected conversation should return.
+   Verify your Discord session persists when Discord permits it.
+4. Use the options menu and an ordinary website link. Check that external
    links open in your default browser and Open in Browser opens the current
    conversation. Your default browser has its own sign-in session.
 5. Resize, expand/restore, hide/show, minimize, use Ctrl+Shift+D, and relaunch through
@@ -241,10 +265,9 @@ Milestone 1 supplied the dark desktop shell and custom header. Milestone 2 adds:
 
 - Always-on-top behavior above normal application windows.
 - Native header dragging and edge/corner resizing through WPF `WindowChrome`.
-- A minimum size of **180 × 120 WPF device-independent units (DIPs)**, with
-  secondary text, decoration, and the footer hidden as space becomes limited.
-  The compact view retains minimize, expand/restore, close, and an expand button.
-- A default size of 360 × 500 DIPs; expand grows toward 720 × 700 DIPs, bounded
+- The compact prototype now uses a **260 × 300 WPF device-independent unit (DIP)**
+  minimum so the conversation and typing area remain available.
+- A default size of 320 × 420 DIPs; expand grows toward 720 × 700 DIPs, bounded
   by the current monitor's usable work area. Click the header expand button
   again to restore the previous size. That temporary toggle size is session-only.
 - Saved normal position and dimensions, restored on the next launch.
@@ -294,18 +317,17 @@ creates shortcuts for other users is planned for a future packaging milestone.
 
 ### Manual verification on Windows
 
-1. Launch the app. On first launch, expect a centered 360 × 500 DIP dark window
-   with the **Your favorites** picker. Later launches should restore saved bounds.
+1. Launch the app. On first launch, expect a centered 320 × 420 DIP dark window
+   with the **Your favorites** picker. Later launches restore bounds and the last favorite.
 2. Put an ordinary application in front of it: the widget should stay above it.
    Other topmost windows, exclusive fullscreen apps, and secure desktop prompts
    can still cover it.
 3. Drag an empty part of the header. Resize using each of the four edges and four
    corners. Movement and resizing should remain smooth. Buttons should still
    work, and dragging should allow crossing monitor boundaries.
-4. Resize to about 300 × 300, 240 × 200, and the 180 × 120 minimum. Secondary
-   content should disappear, the title shortens to **DW**, and essential controls
-   remain reachable. At small sizes, use **Expand widget**, then the header's
-   **Restore compact size** button. Tab and Shift+Tab through controls and activate
+4. Resize to about 300 × 350 and the 260 × 300 minimum. The conversation stays
+   visible without an Expand replacement. Try the header's expand/restore button,
+   then **⋯ → Compact size**. Tab and Shift+Tab through controls and activate
    them with Space; check the visible focus outline.
 5. Move and resize the widget, wait at least half a second, close it, and relaunch.
    Verify position and size. Repeat after minimizing and using tray **Exit**,

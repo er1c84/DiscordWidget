@@ -9,22 +9,37 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Border x:Name="Toolbar" Background="{StaticResource PanelBrush}" Padding="5,4">
-            <DockPanel LastChildFill="False">
-                <Button Content="★" Click="Favorites_Click" Style="{StaticResource HeaderButton}"
-                        ToolTip="Favorites" AutomationProperties.Name="Favorites" />
-                <Button x:Name="BackButton" Content="←" Click="Back_Click" Style="{StaticResource HeaderButton}"
-                        ToolTip="Back" AutomationProperties.Name="Back" IsEnabled="False" />
-                <Button x:Name="ReloadButton" Content="↻" Click="Reload_Click" Style="{StaticResource HeaderButton}"
-                        ToolTip="Reload Discord" AutomationProperties.Name="Reload Discord" />
-                <Button Content="↗" Click="Browser_Click" Style="{StaticResource HeaderButton}"
-                        ToolTip="Open in Browser" AutomationProperties.Name="Open in Browser" />
+        <Border x:Name="Toolbar" Background="{StaticResource BackgroundBrush}" Padding="6,3" BorderBrush="{StaticResource RaisedBrush}" BorderThickness="0,0,0,1">
+            <DockPanel>
                 <Button x:Name="MoreButton" Content="⋯" Click="More_Click" Style="{StaticResource HeaderButton}"
-                        ToolTip="Browser options" AutomationProperties.Name="Browser options" DockPanel.Dock="Right">
+                        ToolTip="Options" AutomationProperties.Name="Options" DockPanel.Dock="Right"
+                        Width="26" Height="26" FontSize="16" VerticalAlignment="Center" Margin="2,0,0,0">
                     <Button.ContextMenu>
-                        <ContextMenu><MenuItem Header="Clear browser data…" Click="Clear_Click" /></ContextMenu>
+                        <ContextMenu Style="{StaticResource WidgetOptionsMenu}">
+                            <MenuItem x:Name="FocusMenu" Header="Chat-only view (experimental)" IsCheckable="True" IsChecked="True" Click="Focus_Click" />
+                            <MenuItem Header="Manage favorites" Click="Favorites_Click" />
+                            <MenuItem Header="Compact size" Click="CompactSize_Click" />
+                            <Separator />
+                            <MenuItem Header="Open Discord" Click="OpenDiscord_Click" />
+                            <MenuItem x:Name="ReloadButton" Header="Reload" Click="Reload_Click" />
+                            <MenuItem x:Name="BackButton" Header="Back" Click="Back_Click" />
+                            <MenuItem Header="Open in Browser" Click="Browser_Click" />
+                            <Separator />
+                            <MenuItem Header="Clear browser data…" Click="Clear_Click" />
+                        </ContextMenu>
                     </Button.ContextMenu>
                 </Button>
+                <Button x:Name="QuickAddButton" Content="+" Click="Add_Click" Style="{StaticResource HeaderButton}"
+                        ToolTip="Add friend or group" AutomationProperties.Name="Add friend or group" DockPanel.Dock="Right"
+                        Width="26" Height="26" FontSize="16" VerticalAlignment="Center" Margin="2,0,0,0" />
+                <TabControl x:Name="NavigationTabs" Style="{StaticResource WidgetTabs}" Height="28" SelectedIndex="1"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" IsEnabled="False"
+                            SelectionChanged="NavigationTabs_SelectionChanged" AutomationProperties.Name="Widget views">
+                    <TabItem x:Name="DiscordTab" Header="Discord" Style="{StaticResource WidgetTab}"
+                             ToolTip="Return to the current Discord conversation" AutomationProperties.Name="Discord" />
+                    <TabItem x:Name="FavoritesTab" Header="Favorites" Style="{StaticResource WidgetTab}"
+                             ToolTip="Show saved conversations" AutomationProperties.Name="Favorites" />
+                </TabControl>
             </DockPanel>
         </Border>
         <Border x:Name="StatusPanel" Grid.Row="1" Padding="10,6" Visibility="Collapsed"
@@ -43,7 +58,7 @@
                 <TextBlock Text="Your favorites" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" />
             </DockPanel>
             <Grid Grid.Row="1">
-                <TextBlock x:Name="EmptyText" Text="Keep your regular chats close.&#x0a;&#x0a;Add a friend, group DM, or server channel using its Discord conversation link."
+                <TextBlock x:Name="EmptyText" Text="Keep your regular chats close.&#x0a;&#x0a;Add a friend or group DM using its Discord conversation link."
                            TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="6,16" />
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl x:Name="FavoritesList">
@@ -75,13 +90,5 @@
         </Grid>
         <!-- Separate layout rows avoid overlaying WPF controls on WebView2's HWND. -->
         <ContentControl x:Name="BrowserHost" Grid.Row="2" Visibility="Collapsed" />
-        <StackPanel x:Name="CompactPanel" Grid.RowSpan="3" VerticalAlignment="Center" Margin="4" Visibility="Collapsed">
-            <TextBlock x:Name="CompactLabel" Text="Your favorites" TextTrimming="CharacterEllipsis" TextAlignment="Center" FontSize="11" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,3,0,0">
-                <Button Content="Favorites" Click="ExpandFavorites_Click" Style="{StaticResource ActionButton}" FontSize="10" MinHeight="24" />
-                <Button Content="Expand" Click="Expand_Click" Style="{StaticResource ActionButton}" FontSize="10" MinHeight="24"
-                        AutomationProperties.Name="Expand widget" />
-            </StackPanel>
-        </StackPanel>
     </Grid>
 </UserControl>

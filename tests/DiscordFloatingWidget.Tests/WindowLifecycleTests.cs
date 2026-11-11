@@ -95,17 +95,17 @@ public sealed class WindowLifecycleTests
                     Assert.Equal((false, null), startup.Read());
                     Assert.False(tray.StartupItem.Checked);
                     Assert.True(window.Topmost);
-                    Assert.Equal(360, window.ActualWidth, 0);
-                    Assert.Equal(500, window.ActualHeight, 0);
+                    Assert.Equal(320, window.ActualWidth, 0);
+                    Assert.Equal(420, window.ActualHeight, 0);
 
                     window.Width = 180;
                     window.Height = 120;
                     await Idle();
-                    Assert.Equal(180, window.ActualWidth, 0);
-                    Assert.Equal(120, window.ActualHeight, 0);
-                    Assert.True(window.ContentView.IsCompact);
-                    Assert.Equal(Visibility.Visible, ((StackPanel)window.ContentView.FindName("CompactPanel")).Visibility);
-                    Assert.Equal("DW", ((TextBlock)window.FindName("HeaderTitle")).Text);
+                    Assert.Equal(260, window.ActualWidth, 0);
+                    Assert.Equal(300, window.ActualHeight, 0);
+                    Assert.Equal(Visibility.Visible, ((Grid)window.ContentView.FindName("PickerPanel")).Visibility);
+                    Assert.Null(window.ContentView.FindName("CompactPanel"));
+                    Assert.Equal("Your favorites", ((TextBlock)window.FindName("HeaderTitle")).Text);
                     var expand = (Button)window.FindName("ExpandButton");
                     window.ShowActivated = true; // Match production for foreground/maximized restoration.
                     var originalHandle = new WindowInteropHelper(window).Handle;
@@ -142,8 +142,8 @@ public sealed class WindowLifecycleTests
                     Assert.True(window.ActualWidth > 180);
                     expand.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     await Idle();
-                    Assert.Equal(180, window.ActualWidth, 0);
-                    Assert.Equal(120, window.ActualHeight, 0);
+                    Assert.Equal(260, window.ActualWidth, 0);
+                    Assert.Equal(300, window.ActualHeight, 0);
 
                     window.WindowState = WindowState.Maximized;
                     await Idle();
@@ -172,8 +172,8 @@ public sealed class WindowLifecycleTests
                     var (saved, warning) = await settings.LoadAsync();
                     Assert.Null(warning);
                     Assert.NotNull(saved);
-                    Assert.Equal(180, saved.Width, 0);
-                    Assert.Equal(120, saved.Height, 0);
+                    Assert.Equal(260, saved.Width, 0);
+                    Assert.Equal(300, saved.Height, 0);
 
                     var restored = new MainWindow(settings, saved, null, new FavoritesService(Path.Combine(directory, "favorites.json")), browserProfile)
                         { ShowActivated = false };
@@ -183,8 +183,8 @@ public sealed class WindowLifecycleTests
                     Assert.Equal(friend, Assert.Single(restored.ContentView.Favorites));
                     await BrowserProfileCheckAsync(Path.Combine(directory, "BrowserCheck"));
                     Assert.Equal(WindowState.Normal, restored.WindowState);
-                    Assert.Equal(180, restored.ActualWidth, 0);
-                    Assert.Equal(120, restored.ActualHeight, 0);
+                    Assert.Equal(260, restored.ActualWidth, 0);
+                    Assert.Equal(300, restored.ActualHeight, 0);
                     var origin = restored.PointToScreen(new Point(0, 0));
                     Assert.InRange(Math.Abs(origin.X - saved.Left), 0, 2);
                     Assert.InRange(Math.Abs(origin.Y - saved.Top), 0, 2);
@@ -194,6 +194,7 @@ public sealed class WindowLifecycleTests
                     restored.PrepareForSessionEnd();
                     await CloseAsync(restored);
                     Assert.NotNull((await settings.LoadAsync()).Layout);
+                    await CompactPrototypeChecks.RunAsync(Path.Combine(directory, "CompactChecks"));
                     completed.SetResult();
                 }
                 catch (Exception ex) { completed.SetException(ex); }
@@ -203,7 +204,7 @@ public sealed class WindowLifecycleTests
         }) { IsBackground = true };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        try { await completed.Task.WaitAsync(TimeSpan.FromSeconds(90), TestContext.Current.CancellationToken); }
+        try { await completed.Task.WaitAsync(TimeSpan.FromSeconds(150), TestContext.Current.CancellationToken); }
         finally
         {
             if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
@@ -7,17 +8,28 @@ using Microsoft.Web.WebView2.Wpf;
 
 namespace DiscordFloatingWidget.Services;
 
-// Owns one lazily initialized browser on the WPF dispatcher. It never reads
-// Discord DOM, tokens, messages, cookies, or passwords, and exposes no native API
-// to the page. Favorites contain only manually supplied conversation URLs.
-internal sealed class DiscordWebService(ContentControl host, string profileDirectory) : IDisposable
+// Owns one browser. The optional focus script inspects layout structure only;
+// no page content, account data or credentials are read back into the app.
+internal sealed class DiscordWebService : IDisposable
 {
+    private readonly ContentControl host;
+    private readonly string profileDirectory;
+    private readonly BrowserIdleController _idle;
     private readonly CancellationTokenSource _lifetime = new();
     private WebView2? _view;
     private Task<bool>? _initializing;
     private bool _disposed, _clearing, _recreate;
     private ulong _navigationId;
     private int _requestVersion;
+    private bool _windowVisible = true, _focusEnabled = true;
+    private string? _focusScriptId;
+
+    internal DiscordWebService(ContentControl host, string profileDirectory, TimeSpan? idleDelay = null)
+    {
+        this.host = host;
+        this.profileDirectory = profileDirectory;
+        _idle = new BrowserIdleController(SuspendAsync, Resume, idleDelay);
+    }
 
     internal static string DefaultProfileDirectory => Path.Combine(Environment.GetFolderPath(
         Environment.SpecialFolder.LocalApplicationData), "DiscordFloatingWidget", "WebView2");
@@ -25,12 +37,15 @@ internal sealed class DiscordWebService(ContentControl host, string profileDirec
     internal Uri RequestedDestination { get; private set; } = DiscordUrlPolicy.Home;
     internal string Status { get; private set; } = "Choose a favorite or open Discord.";
     internal bool HasError { get; private set; }
+    internal bool HasNotice { get; private set; }
     internal bool IsBusy { get; private set; }
     internal bool RuntimeMissing { get; private set; }
     internal bool IsReady => !_disposed && !_recreate && _view?.CoreWebView2 is not null;
     internal bool CanGoBack => IsReady && _view!.CoreWebView2.CanGoBack;
     internal CoreWebView2? Core => IsReady ? _view!.CoreWebView2 : null;
+    internal bool IsSleeping => Core?.IsSuspended == true;
     internal event Action? Changed;
+    internal event Action<CoreWebView2>? Initialized;
 
     internal async Task NavigateAsync(Uri destination)
     {
@@ -82,6 +97,10 @@ internal sealed class DiscordWebService(ContentControl host, string profileDirec
             core.PermissionRequested += PermissionRequested;
             core.ProcessFailed += ProcessFailed;
             core.DownloadStarting += DownloadStarting;
+            await RegisterFocusScriptAsync(core);
+            if (_disposed) return false;
+            _view.Visibility = _windowVisible ? Visibility.Visible : Visibility.Hidden;
+            Initialized?.Invoke(core);
             RuntimeMissing = false;
             SetStatus("Discord is ready.");
             return true;
@@ -100,6 +119,56 @@ internal sealed class DiscordWebService(ContentControl host, string profileDirec
             return false;
         }
     }
+
+    internal void SetWindowVisible(bool visible)
+    {
+        if (_disposed) return;
+        _windowVisible = visible;
+        if (_view is not null) _view.Visibility = visible ? Visibility.Visible : Visibility.Hidden;
+        _idle.SetVisible(visible);
+    }
+
+    private async Task<bool> SuspendAsync()
+    {
+        if (_disposed || _windowVisible || _clearing || Core is not { } core) return false;
+        try { return await core.TrySuspendAsync(); }
+        catch (Exception ex) when (IsBrowserError(ex)) { return false; }
+    }
+
+    private void Resume()
+    {
+        if (_disposed || !_windowVisible || Core is not { } core) return;
+        try { core.Resume(); QueueFocusRefresh(); }
+        catch (Exception ex) when (IsBrowserError(ex)) { Fail("Discord could not resume. Choose Reload to reconnect."); }
+    }
+
+    internal async Task SetFocusEnabledAsync(bool enabled)
+    {
+        _focusEnabled = enabled;
+        if (_disposed || Core is not { } core) return;
+        try
+        {
+            await RegisterFocusScriptAsync(core);
+            if (!_disposed && core == Core && !core.IsSuspended && DiscordUrlPolicy.IsDiscord(new Uri(core.Source)))
+                await core.ExecuteScriptAsync($"window.__discordWidgetFocus?.setEnabled({(enabled ? "true" : "false")});");
+        }
+        catch (Exception ex) when (IsBrowserError(ex)) { Fail("Focus view could not update. Choose Reload or use the normal Discord view."); }
+    }
+
+    private async Task RegisterFocusScriptAsync(CoreWebView2 core)
+    {
+        if (_focusScriptId is not null) core.RemoveScriptToExecuteOnDocumentCreated(_focusScriptId);
+        _focusScriptId = await core.AddScriptToExecuteOnDocumentCreatedAsync(DiscordFocusScript.Source +
+            (_focusEnabled ? "" : "\nwindow.__discordWidgetFocus?.setEnabled(false);"));
+    }
+
+    private void QueueFocusRefresh() => host.Dispatcher.BeginInvoke(new Action(async () =>
+    {
+        if (_disposed || _clearing || !_windowVisible || Core is not { } core || core.IsSuspended) return;
+        if (!Uri.TryCreate(core.Source, UriKind.Absolute, out var uri) || !DiscordUrlPolicy.IsDiscord(uri)) return;
+        try { await core.ExecuteScriptAsync($"window.__discordWidgetFocus?.setEnabled({(_focusEnabled ? "true" : "false")});"); }
+        catch (Exception ex) when (IsBrowserError(ex)) { /* A navigation can replace the document before this runs. */ }
+    }));
 
     internal void Back()
     {
@@ -193,7 +262,7 @@ internal sealed class DiscordWebService(ContentControl host, string profileDirec
     private void NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         if (_clearing || e.NavigationId != _navigationId) return;
-        if (e.IsSuccess) SetStatus("Discord Web · unofficial companion");
+        if (e.IsSuccess) { SetStatus("Discord is ready."); QueueFocusRefresh(); }
         else if (e.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
             Fail($"Discord could not load ({e.WebErrorStatus}). Check your connection, choose Reload, or Open in Browser.");
         else SetStatus("Navigation stopped. Choose Reload or a favorite.");
@@ -204,6 +273,7 @@ internal sealed class DiscordWebService(ContentControl host, string profileDirec
     {
         if (!_clearing && DiscordUrlPolicy.TryConversation(_view?.CoreWebView2.Source, out var conversation))
             RequestedDestination = conversation;
+        QueueFocusRefresh();
         Changed?.Invoke();
     }
 
@@ -243,16 +313,17 @@ internal sealed class DiscordWebService(ContentControl host, string profileDirec
 
     private void QueueStatus(string message) => host.Dispatcher.BeginInvoke(new Action(() =>
     {
-        if (!_disposed) SetStatus(message);
+        if (!_disposed) SetStatus(message, notice: true);
     }));
 
     private void Fail(string message) => SetStatus(message, error: true);
-    private void SetStatus(string message, bool busy = false, bool error = false)
+    private void SetStatus(string message, bool busy = false, bool error = false, bool notice = false)
     {
         if (_disposed) return;
         Status = message;
         IsBusy = busy;
         HasError = error;
+        HasNotice = notice;
         Changed?.Invoke();
     }
 
@@ -265,6 +336,7 @@ internal sealed class DiscordWebService(ContentControl host, string profileDirec
             _view = null;
         }
         _initializing = null;
+        _focusScriptId = null;
         _recreate = false;
     }
 
@@ -273,6 +345,7 @@ internal sealed class DiscordWebService(ContentControl host, string profileDirec
         host.Dispatcher.VerifyAccess();
         if (_disposed) return;
         _disposed = true;
+        _idle.Dispose();
         _lifetime.Cancel();
         ResetBrowser();
         _lifetime.Dispose();

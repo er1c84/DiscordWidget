@@ -8,7 +8,7 @@ public sealed class LayoutGeometryTests
 {
     [Fact]
     public void FirstLaunchIsCenteredInWorkArea()
-        => Assert.Equal(new PixelBounds(780, 270, 360, 500),
+        => Assert.Equal(new PixelBounds(800, 310, 320, 420),
             LayoutGeometry.Restore(null, new PixelBounds(0, 0, 1920, 1040), 1));
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class LayoutGeometryTests
 
     [Fact]
     public void TinySavedSizeGrowsToMinimum()
-        => Assert.Equal(new PixelBounds(0, 0, 270, 180),
+        => Assert.Equal(new PixelBounds(0, 0, 390, 450),
             LayoutGeometry.Restore(new WindowLayout(0, 0, 1, 1, 1), new PixelBounds(0, 0, 1920, 1040), 1.5));
 
     [Fact]

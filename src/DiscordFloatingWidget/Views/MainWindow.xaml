@@ -3,27 +3,26 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:views="clr-namespace:DiscordFloatingWidget.Views"
-        Title="Discord Floating Widget" Width="360" Height="500"
-        MinWidth="180" MinHeight="120" WindowStartupLocation="Manual" Topmost="True"
+        Title="Discord Floating Widget" Width="320" Height="420"
+        MinWidth="260" MinHeight="300" WindowStartupLocation="Manual" Topmost="True"
         WindowStyle="None" ResizeMode="CanResize" FontFamily="Segoe UI"
         Background="{StaticResource BackgroundBrush}">
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="6"
+        <shell:WindowChrome CaptionHeight="34" ResizeBorderThickness="6"
                             GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
     <Border BorderBrush="{StaticResource RaisedBrush}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="44" />
+                <RowDefinition Height="34" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid Background="{StaticResource PanelBrush}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="HeaderTitle" Text="Discord Floating Widget" FontSize="12" FontWeight="SemiBold"
+                <TextBlock x:Name="HeaderTitle" Text="Your favorites" FontSize="12" FontWeight="SemiBold"
                            ToolTip="Discord Floating Widget — drag this header to move"
                            Margin="12,0,4,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,6,0"
@@ -37,8 +36,6 @@
                 </StackPanel>
             </Grid>
             <views:DiscordView x:Name="DiscordContent" Grid.Row="1" />
-            <TextBlock x:Name="Footer" Grid.Row="2" Text="Unofficial Discord companion" FontSize="11" Margin="0,0,0,16"
-                       Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
         </Grid>
     </Border>
 </Window>
